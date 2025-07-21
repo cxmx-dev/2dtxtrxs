@@ -50,14 +50,20 @@ class Tetris {
         this.isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         if (this.isMobile) {
             this.canvas.width = Math.min(containerWidth, 480);
-            this.canvas.height = Math.min(containerHeight * 0.7, 640);
+            // Reduce height to leave more space for controls, and move playfield up
+            this.canvas.height = Math.min(containerHeight * 0.6, 480);
         } else {
             this.canvas.width = Math.min(containerWidth * 0.5, 480);
             this.canvas.height = Math.min(containerHeight * 0.8, 800);
         }
         this.BLOCK_SIZE = Math.floor(this.canvas.width / (this.BOARD_WIDTH + 2));
         this.BOARD_OFFSET_X = (this.canvas.width - this.BOARD_WIDTH * this.BLOCK_SIZE) / 2;
-        this.BOARD_OFFSET_Y = (this.canvas.height - this.BOARD_HEIGHT * this.BLOCK_SIZE) / 2;
+        // On mobile, move playfield up to avoid overlap with controls
+        if (this.isMobile) {
+            this.BOARD_OFFSET_Y = 8; // 8px from top
+        } else {
+            this.BOARD_OFFSET_Y = (this.canvas.height - this.BOARD_HEIGHT * this.BLOCK_SIZE) / 2;
+        }
     }
     initBoard() {
         this.board = [];
@@ -124,43 +130,72 @@ class Tetris {
         }
         return rotated;
     }
-    tryRotate() {
+    tryRotate(dir = 1) {
         if (!this.currentPiece || this.gameOver || this.paused) return;
         const originalShape = this.currentPiece.shape;
-        const rotatedShape = this.rotatePiece(this.currentPiece);
-        const kicks = this.getWallKicks(this.currentPiece.name, originalShape, rotatedShape);
-        for (let kick of kicks) {
-            this.currentPiece.shape = rotatedShape;
-            this.currentPiece.x += kick.x;
-            this.currentPiece.y += kick.y;
-            if (!this.isCollision(this.currentPiece)) {
+        const rotatedShape = this.rotateMatrix(this.currentPiece.shape, dir);
+        const kicks = this.getWallKickTests(this.currentPiece.name, this.currentPiece.rotation || 0, dir);
+        for (let i = 0; i < kicks.length; i++) {
+            const [dx, dy] = kicks[i];
+            const testPiece = {
+                ...this.currentPiece,
+                shape: rotatedShape,
+                x: this.currentPiece.x + dx,
+                y: this.currentPiece.y + dy
+            };
+            if (!this.isCollision(testPiece)) {
+                this.currentPiece.shape = rotatedShape;
+                this.currentPiece.x += dx;
+                this.currentPiece.y += dy;
+                this.currentPiece.rotation = ((this.currentPiece.rotation || 0) + dir + 4) % 4;
                 return;
             }
-            this.currentPiece.x -= kick.x;
-            this.currentPiece.y -= kick.y;
         }
-        this.currentPiece.shape = originalShape;
+        // If all kicks fail, do not rotate
     }
-    getWallKicks(pieceName, originalShape, rotatedShape) {
-        const kicks = [];
-        if (pieceName === 'I') {
-            kicks.push(
-                {x: 0, y: 0}, {x: -2, y: 0}, {x: 1, y: 0}, {x: -2, y: -1}, {x: 1, y: 2},
-                {x: 0, y: 0}, {x: -1, y: 0}, {x: 2, y: 0}, {x: -1, y: 2}, {x: 2, y: -1},
-                {x: 0, y: 0}, {x: 2, y: 0}, {x: -1, y: 0}, {x: 2, y: 1}, {x: -1, y: -2},
-                {x: 0, y: 0}, {x: 1, y: 0}, {x: -2, y: 0}, {x: 1, y: -2}, {x: -2, y: 1}
-            );
-        } else if (pieceName === 'O') {
-            kicks.push({x: 0, y: 0});
+    rotateMatrix(matrix, dir) {
+        // dir: 1 = CW, -1 = CCW
+        const rows = matrix.length;
+        const cols = matrix[0].length;
+        const rotated = [];
+        if (dir === 1) {
+            for (let x = 0; x < cols; x++) {
+                rotated[x] = [];
+                for (let y = rows - 1; y >= 0; y--) {
+                    rotated[x][rows - 1 - y] = matrix[y][x];
+                }
+            }
         } else {
-            kicks.push(
-                {x: 0, y: 0}, {x: -1, y: 0}, {x: -1, y: 1}, {x: 0, y: -2}, {x: -1, y: -2},
-                {x: 0, y: 0}, {x: 1, y: 0}, {x: 1, y: -1}, {x: 0, y: 2}, {x: 1, y: 2},
-                {x: 0, y: 0}, {x: 1, y: 0}, {x: 1, y: 1}, {x: 0, y: -2}, {x: 1, y: -2},
-                {x: 0, y: 0}, {x: -1, y: 0}, {x: -1, y: -1}, {x: 0, y: 2}, {x: -1, y: 2}
-            );
+            for (let x = cols - 1; x >= 0; x--) {
+                rotated[cols - 1 - x] = [];
+                for (let y = 0; y < rows; y++) {
+                    rotated[cols - 1 - x][y] = matrix[y][x];
+                }
+            }
         }
-        return kicks;
+        return rotated;
+    }
+    getWallKickTests(pieceName, rotation, dir) {
+        // SRS wall kick data for all pieces
+        // Only I and O have special rules, others use standard
+        const kicks = {
+            I: [
+                [[0,0],[ -2,0],[ 1,0],[ -2,-1],[ 1,2]], // 0->R
+                [[0,0],[ -1,0],[ 2,0],[ -1,2],[ 2,-1]], // R->2
+                [[0,0],[ 2,0],[ -1,0],[ 2,1],[ -1,-2]], // 2->L
+                [[0,0],[ 1,0],[ -2,0],[ 1,-2],[ -2,1]]  // L->0
+            ],
+            O: [ [[0,0]] ],
+            default: [
+                [[0,0],[ -1,0],[ -1,1],[ 0,-2],[ -1,-2]], // 0->R
+                [[0,0],[ 1,0],[ 1,-1],[ 0,2],[ 1,2]],     // R->2
+                [[0,0],[ 1,0],[ 1,1],[ 0,-2],[ 1,-2]],    // 2->L
+                [[0,0],[ -1,0],[ -1,-1],[ 0,2],[ -1,2]]   // L->0
+            ]
+        };
+        if (pieceName === 'O') return kicks.O;
+        if (pieceName === 'I') return kicks.I[(rotation + (dir === 1 ? 0 : 3)) % 4];
+        return kicks.default[(rotation + (dir === 1 ? 0 : 3)) % 4];
     }
     movePiece(dx, dy) {
         if (!this.currentPiece || this.gameOver || this.paused) return false;
@@ -394,7 +429,10 @@ class Tetris {
                     break;
                 case 'ArrowUp':
                 case 'KeyW':
-                    this.tryRotate();
+                    this.tryRotate(1);
+                    break;
+                case 'KeyZ':
+                    this.tryRotate(-1);
                     break;
                 case 'Space':
                     this.hardDrop();
@@ -451,8 +489,8 @@ class Tetris {
                     return;
                 }
                 if (Math.abs(deltaY) > Math.abs(deltaX) && deltaY < -minSwipe) {
-                    // Swipe up: rotate
-                    this.tryRotate();
+                    // Swipe up: rotate CW
+                    this.tryRotate(1);
                 } else if (Math.abs(deltaY) > Math.abs(deltaX) && deltaY > minSwipe) {
                     // Swipe down: hard drop
                     this.hardDrop();
@@ -463,8 +501,8 @@ class Tetris {
                     // Swipe left: move left
                     this.movePiece(-1, 0);
                 } else if (now - lastTap < 350) {
-                    // Double tap: rotate
-                    this.tryRotate();
+                    // Double tap: rotate CCW
+                    this.tryRotate(-1);
                 }
                 lastTap = now;
             });
@@ -518,7 +556,7 @@ class Tetris {
         const buttons = this.actionButtons;
         const actions = [
             { key: 'ArrowLeft', action: () => this.movePiece(-1, 0) },
-            { key: 'ArrowUp', action: () => this.tryRotate() },
+            { key: 'ArrowUp', action: () => this.tryRotate(1) },
             { key: 'ArrowRight', action: () => this.movePiece(1, 0) },
             { key: 'ArrowDown', action: () => this.dropPiece() },
             { key: 'Space', action: () => this.hardDrop() },
