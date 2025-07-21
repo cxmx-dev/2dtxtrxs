@@ -1,0 +1,355 @@
+<!-- Cache busting: 2025-07-21 fix canvas sizing and centering -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>2D Tetris - Fullscreen Edition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
+            font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+            overflow: hidden;
+            cursor: none;
+            border: none;
+            outline: none;
+        }
+
+        body::-webkit-scrollbar {
+            display: none;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 0;
+            border: none;
+            outline: none;
+        }
+
+        #gameCanvas {
+            display: block;
+            margin: 0 auto;
+            max-width: 98vw;
+            max-height: 80vh;
+            width: min(480px, 90vw);
+            height: min(800px, 80vh);
+            border: 3px solid #00ff88;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5), inset 0 0 20px rgba(0, 255, 136, 0.1);
+            background: #000;
+            outline: none;
+        }
+
+        #ui {
+            position: static;
+            margin-bottom: 10px;
+            text-align: left;
+            width: 100vw;
+            max-width: 400px;
+        }
+
+        #score {
+            margin-bottom: 10px;
+        }
+
+        #level {
+            margin-bottom: 10px;
+        }
+
+        #lines {
+            margin-bottom: 10px;
+        }
+
+        #holdPiece {
+            margin-bottom: 10px;
+        }
+
+        #nextPiece {
+            margin-top: 30px;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: #00ff88;
+            font-size: 14px;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.8);
+            z-index: 10;
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: #ff0066;
+            padding: 40px;
+            border-radius: 15px;
+            border: 2px solid #ff0066;
+            text-align: center;
+            font-size: 24px;
+            display: none;
+            z-index: 20;
+            box-shadow: 0 0 30px rgba(255, 0, 102, 0.5);
+        }
+
+        #pause {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: #ffff00;
+            padding: 30px;
+            border-radius: 15px;
+            border: 2px solid #ffff00;
+            text-align: center;
+            font-size: 20px;
+            display: none;
+            z-index: 20;
+            box-shadow: 0 0 30px rgba(255, 255, 0, 0.5);
+        }
+
+        .glow {
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 10px rgba(0, 255, 136, 0.8); }
+            to { text-shadow: 0 0 20px rgba(0, 255, 136, 1), 0 0 30px rgba(0, 255, 136, 0.8); }
+        }
+
+        /* Disable context menu */
+        canvas {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            outline: none;
+        }
+
+        /* Mobile Controls */
+        #mobileControls {
+            position: static;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        /* Action Buttons */
+        #actionButtons {
+            position: static;
+            margin: 0 auto;
+            width: 100vw;
+            max-width: 400px;
+        }
+
+        .actionBtn {
+            flex: 1;
+            max-width: 60px;
+            height: 60px;
+            background: rgba(0, 255, 136, 0.1);
+            border: 2px solid rgba(0, 255, 136, 0.5);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #00ff88;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        .actionBtn:active {
+            background: rgba(0, 255, 136, 0.3);
+            transform: scale(0.95);
+            box-shadow: 0 0 25px rgba(0, 255, 136, 0.8);
+        }
+
+        .actionBtn:hover {
+            background: rgba(0, 255, 136, 0.2);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+
+        #uiRow {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 2vw;
+            margin-bottom: 1vw;
+            font-size: 1.1em;
+            color: #00ff88;
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            padding: 0.5em 1.5em;
+            box-shadow: 0 0 8px rgba(0,255,136,0.1);
+            min-width: 60vw;
+            max-width: 90vw;
+        }
+
+        /* Mobile-specific styles */
+        @media (max-width: 768px) {
+            #ui {
+                font-size: 14px;
+                margin-bottom: 6px;
+            }
+
+            #controls {
+                display: none;
+            }
+
+            #mobileControls {
+                margin-top: 16px;
+                margin-bottom: 8px;
+            }
+
+            #actionButtons {
+                max-width: 98vw;
+            }
+
+            #gameCanvas {
+                border-width: 2px;
+            }
+            #uiRow {
+                font-size: 1.2em;
+                min-width: 90vw;
+                max-width: 98vw;
+                padding: 0.7em 0.5em;
+            }
+            #gameCanvas {
+                max-width: 98vw;
+                max-height: 60vh;
+            }
+            #mobileControls {
+                display: block;
+                width: 100vw;
+                position: fixed;
+                left: 0;
+                bottom: 0;
+                z-index: 100;
+                background: none;
+                pointer-events: none;
+            }
+            #actionButtons {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                pointer-events: auto;
+                gap: 2vw;
+                width: 98vw;
+                margin: 0 auto 1vw auto;
+                background: rgba(0,0,0,0.3);
+                border-radius: 18px;
+                padding: 0.5em 0.5em;
+                box-shadow: 0 0 12px rgba(0,255,136,0.08);
+            }
+            .actionBtn {
+                flex: 1;
+                max-width: 48px;
+                height: 48px;
+                background: rgba(0,255,136,0.08);
+                border: 1.5px solid rgba(0,255,136,0.3);
+                border-radius: 50%;
+                color: #00ff88;
+                font-size: 1.5em;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s;
+                box-shadow: 0 0 8px rgba(0,255,136,0.08);
+                user-select: none;
+                outline: none;
+                backdrop-filter: blur(4px);
+            }
+            .actionBtn:active {
+                background: rgba(0,255,136,0.18);
+                transform: scale(0.95);
+            }
+        }
+        @media (min-width: 769px) {
+            #mobileControls, #actionButtons {
+                display: none !important;
+            }
+        }
+
+        /* Prevent zoom on mobile */
+        @media (max-width: 768px) {
+            body {
+                touch-action: manipulation;
+                -webkit-touch-callout: none;
+                user-select: none;
+                -webkit-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                -webkit-tap-highlight-color: transparent;
+            }
+        }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+    <div id="gameContainer">
+        <div id="uiRow">
+            <span id="score">Score: 0</span>
+            <span id="level">Level: 1</span>
+            <span id="lines">Lines: 0</span>
+            <span id="holdPiece">Hold: None</span>
+            <span id="nextPiece">Next: None</span>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+        <div id="controls">
+            <div>WASD : Move</div>
+            <div>↓ : Soft Drop</div>
+            <div>↑ : Rotate</div>
+            <div>Space : Hard Drop</div>
+            <div>Q : Hold Piece</div>
+            <div>P : Pause</div>
+            <div>R : Restart</div>
+        </div>
+        <div id="mobileControls">
+            <div id="actionButtons">
+                <button class="actionBtn" title="Move Left">&#8592;</button>
+                <button class="actionBtn" title="Rotate">&#8635;</button>
+                <button class="actionBtn" title="Move Right">&#8594;</button>
+                <button class="actionBtn" title="Soft Drop">&#8595;</button>
+                <button class="actionBtn" title="Hard Drop">&#8681;</button>
+                <button class="actionBtn" title="Hold Piece">H</button>
+            </div>
+        </div>
+        <div id="gameOver" style="display:none;">
+            <div class="glow">GAME OVER</div>
+            <div style="margin-top: 20px; font-size: 16px;">Press R to restart</div>
+        </div>
+        <div id="pause" style="display:none;">
+            <div class="glow">PAUSED</div>
+            <div style="margin-top: 20px; font-size: 16px;">Press P to resume</div>
+        </div>
+    </div>
+
+    <script src="tetris.js"></script>
+</body>
+</html> 

@@ -1,0 +1,48 @@
+{
+  "name": "tetris-2d5",
+  "version": "1.0.0",
+  "description": "A modern, visually stunning Tetris game with 2.5D graphics and fullscreen support",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "dev": "python -m http.server 8000",
+    "serve": "npx http-server -p 8000",
+    "docker:build": "docker build -t tetris-2d5 .",
+    "docker:run": "docker run -p 8080:80 tetris-2d5",
+    "docker:deploy": "./deploy.sh",
+    "docker:compose": "docker-compose up -d",
+    "docker:compose:down": "docker-compose down"
+  },
+  "keywords": [
+    "tetris",
+    "game",
+    "2d5",
+    "html5",
+    "canvas",
+    "javascript",
+    "fullscreen",
+    "wall-kick",
+    "hold-piece"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/tetris-2d5.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/tetris-2d5/issues"
+  },
+  "homepage": "https://github.com/yourusername/tetris-2d5#readme",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
+} 

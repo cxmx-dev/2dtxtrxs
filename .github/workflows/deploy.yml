@@ -1,0 +1,92 @@
+name: Deploy 2.5D Tetris
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Validate files
+        run: |
+          echo "🔍 Validating project files..."
+          if [ -f "index.html" ]; then
+            echo "✅ index.html found"
+          else
+            echo "❌ index.html not found"
+            exit 1
+          fi
+
+          if [ -f "tetris.js" ]; then
+            echo "✅ tetris.js found"
+          else
+            echo "❌ tetris.js not found"
+            exit 1
+          fi
+
+          if [ -f "Dockerfile" ]; then
+            echo "✅ Dockerfile found"
+          else
+            echo "❌ Dockerfile not found"
+            exit 1
+          fi
+
+          echo "🎉 All required files validated!"
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: tetris-2d5:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tetris-game
+          path: |
+            index.html
+            tetris.js
+            README.md
+          retention-days: 30
+
+  deploy:
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        if: github.ref == 'refs/heads/main'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
