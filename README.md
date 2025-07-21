@@ -350,3 +350,13 @@ Would you like me to help you commit and push these changes to GitHub?
 - **H**: Hold piece
 ```
 [←] [↻] [→] [↓] [⏬] [H]
+```
+
+## 🔧 **Git Security Fix**
+
+To fix the Git security issue, run the following command:
+```sh
+git config --global --add safe.directory D:/Code/072025/txtrxs
+```
+
+After running that, you should be able to use all git commands in this directory without the error.
