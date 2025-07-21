@@ -173,6 +173,7 @@ class Tetris {
     }
     dropPiece() {
         if (!this.currentPiece || this.gameOver || this.paused) return;
+        // Only drop one piece per call
         if (!this.movePiece(0, 1)) {
             this.placePiece();
             this.clearLines();
@@ -420,15 +421,21 @@ class Tetris {
                 }
             }, 100);
         });
+        // --- Mobile touch events ---
         if (this.isMobile) {
             let lastTap = 0;
             let startY = 0;
             let startX = 0;
+            let touchMoved = false;
             this.canvas.addEventListener('touchstart', (e) => {
                 if (e.touches.length === 1) {
                     startY = e.touches[0].clientY;
                     startX = e.touches[0].clientX;
+                    touchMoved = false;
                 }
+            });
+            this.canvas.addEventListener('touchmove', (e) => {
+                touchMoved = true;
             });
             this.canvas.addEventListener('touchend', (e) => {
                 const endY = e.changedTouches[0].clientY;
@@ -437,9 +444,26 @@ class Tetris {
                 const deltaX = endX - startX;
                 const minSwipe = 40;
                 const now = Date.now();
+                // Only allow one action per touch
+                if (!touchMoved) {
+                    // Tap to pause
+                    this.togglePause();
+                    return;
+                }
                 if (Math.abs(deltaY) > Math.abs(deltaX) && deltaY < -minSwipe) {
+                    // Swipe up: rotate
                     this.tryRotate();
+                } else if (Math.abs(deltaY) > Math.abs(deltaX) && deltaY > minSwipe) {
+                    // Swipe down: hard drop
+                    this.hardDrop();
+                } else if (Math.abs(deltaX) > Math.abs(deltaY) && deltaX < -minSwipe) {
+                    // Swipe right: move right
+                    this.movePiece(1, 0);
+                } else if (Math.abs(deltaX) > Math.abs(deltaY) && deltaX > minSwipe) {
+                    // Swipe left: move left
+                    this.movePiece(-1, 0);
                 } else if (now - lastTap < 350) {
+                    // Double tap: rotate
                     this.tryRotate();
                 }
                 lastTap = now;
@@ -450,6 +474,9 @@ class Tetris {
         if (!this.isMobile) {
             const mobileControls = document.getElementById('mobileControls');
             if (mobileControls) mobileControls.style.display = 'none';
+            // Remove restart button if present
+            const restartBtn = document.getElementById('restartBtn');
+            if (restartBtn) restartBtn.remove();
             return;
         }
         const mobileControls = document.getElementById('mobileControls');
@@ -457,6 +484,34 @@ class Tetris {
         this.actionButtons = document.querySelectorAll('.actionBtn');
         if (this.actionButtons.length > 0) {
             this.setupActionButtons();
+        }
+        // Add a small restart button at bottom right if not present
+        if (!document.getElementById('restartBtn')) {
+            const restartBtn = document.createElement('button');
+            restartBtn.id = 'restartBtn';
+            restartBtn.textContent = '⟳';
+            restartBtn.style.position = 'fixed';
+            restartBtn.style.bottom = '12px';
+            restartBtn.style.right = '12px';
+            restartBtn.style.width = '40px';
+            restartBtn.style.height = '40px';
+            restartBtn.style.borderRadius = '50%';
+            restartBtn.style.background = '#222';
+            restartBtn.style.color = '#fff';
+            restartBtn.style.fontSize = '1.5em';
+            restartBtn.style.opacity = '0.7';
+            restartBtn.style.zIndex = '1001';
+            restartBtn.style.border = 'none';
+            restartBtn.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+            restartBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.restart();
+            });
+            restartBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.restart();
+            });
+            document.body.appendChild(restartBtn);
         }
     }
     setupActionButtons() {
