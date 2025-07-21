@@ -48,19 +48,21 @@ class Tetris {
         const containerWidth = window.innerWidth;
         const containerHeight = window.innerHeight;
         this.isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        let controlsHeight = 0;
         if (this.isMobile) {
+            // Estimate controls height (including restart button)
+            controlsHeight = 70; // px, adjust if needed
             this.canvas.width = Math.min(containerWidth, 480);
-            // Reduce height to leave more space for controls, and move playfield up
-            this.canvas.height = Math.min(containerHeight * 0.6, 480);
+            // Fit canvas above controls, never cut off bottom
+            this.canvas.height = Math.min(containerHeight - controlsHeight - 16, 640);
         } else {
             this.canvas.width = Math.min(containerWidth * 0.5, 480);
             this.canvas.height = Math.min(containerHeight * 0.8, 800);
         }
         this.BLOCK_SIZE = Math.floor(this.canvas.width / (this.BOARD_WIDTH + 2));
         this.BOARD_OFFSET_X = (this.canvas.width - this.BOARD_WIDTH * this.BLOCK_SIZE) / 2;
-        // On mobile, move playfield up to avoid overlap with controls
         if (this.isMobile) {
-            this.BOARD_OFFSET_Y = 8; // 8px from top
+            this.BOARD_OFFSET_Y = 8;
         } else {
             this.BOARD_OFFSET_Y = (this.canvas.height - this.BOARD_HEIGHT * this.BLOCK_SIZE) / 2;
         }
@@ -459,6 +461,16 @@ class Tetris {
                 }
             }, 100);
         });
+        // --- Pause/unpause on tap/click on playfield (canvas) ---
+        this.canvas.addEventListener('click', (e) => {
+            this.togglePause();
+        });
+        this.canvas.addEventListener('touchend', (e) => {
+            // Only pause/unpause if not a swipe (single tap)
+            if (e.changedTouches.length === 1 && e.changedTouches[0].target === this.canvas) {
+                this.togglePause();
+            }
+        });
         // --- Mobile touch events ---
         if (this.isMobile) {
             let lastTap = 0;
@@ -484,8 +496,7 @@ class Tetris {
                 const now = Date.now();
                 // Only allow one action per touch
                 if (!touchMoved) {
-                    // Tap to pause
-                    this.togglePause();
+                    // Already handled by above for pause
                     return;
                 }
                 if (Math.abs(deltaY) > Math.abs(deltaX) && deltaY < -minSwipe) {
