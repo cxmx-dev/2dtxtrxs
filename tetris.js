@@ -1,13 +1,14 @@
-// Cache busting: 2025-07-21 clean, working 2D Tetris game
+// Optimized, readable, and consolidated 2D Tetris game
 class Tetris {
     constructor() {
-        this.canvas = document.getElementById('gameCanvas');
+        const d = document;
+        this.canvas = d.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
-        this.scoreElement = document.getElementById('score');
-        this.levelElement = document.getElementById('level');
-        this.linesElement = document.getElementById('lines');
-        this.holdElement = document.getElementById('holdPiece');
-        this.nextElement = document.getElementById('nextPiece');
+        this.scoreElement = d.getElementById('score');
+        this.levelElement = d.getElementById('level');
+        this.linesElement = d.getElementById('lines');
+        this.holdElement = d.getElementById('holdPiece');
+        this.nextElement = d.getElementById('nextPiece');
         this.gameOver = false;
         this.paused = false;
         this.BOARD_WIDTH = 10;
@@ -50,10 +51,8 @@ class Tetris {
         this.isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         let controlsHeight = 0;
         if (this.isMobile) {
-            // Estimate controls height (including restart button)
-            controlsHeight = 70; // px, adjust if needed
+            controlsHeight = 70;
             this.canvas.width = Math.min(containerWidth, 480);
-            // Fit canvas above controls, never cut off bottom
             this.canvas.height = Math.min(containerHeight - controlsHeight - 16, 640);
         } else {
             this.canvas.width = Math.min(containerWidth * 0.5, 480);
@@ -61,11 +60,7 @@ class Tetris {
         }
         this.BLOCK_SIZE = Math.floor(this.canvas.width / (this.BOARD_WIDTH + 2));
         this.BOARD_OFFSET_X = (this.canvas.width - this.BOARD_WIDTH * this.BLOCK_SIZE) / 2;
-        if (this.isMobile) {
-            this.BOARD_OFFSET_Y = 8;
-        } else {
-            this.BOARD_OFFSET_Y = (this.canvas.height - this.BOARD_HEIGHT * this.BLOCK_SIZE) / 2;
-        }
+        this.BOARD_OFFSET_Y = this.isMobile ? 8 : (this.canvas.height - this.BOARD_HEIGHT * this.BLOCK_SIZE) / 2;
     }
     initBoard() {
         this.board = [];
@@ -77,15 +72,11 @@ class Tetris {
         }
     }
     spawnPiece() {
-        if (!this.nextPiece) {
-            this.nextPiece = this.getRandomPiece();
-        }
+        if (!this.nextPiece) this.nextPiece = this.getRandomPiece();
         this.currentPiece = this.nextPiece;
         this.nextPiece = this.getRandomPiece();
         this.canHold = true;
-        if (this.isCollision(this.currentPiece)) {
-            this.gameOver = true;
-        }
+        if (this.isCollision(this.currentPiece)) this.gameOver = true;
     }
     getRandomPiece() {
         const pieces = [
@@ -120,43 +111,7 @@ class Tetris {
         }
         return false;
     }
-    rotatePiece(piece) {
-        const rotated = [];
-        const rows = piece.shape.length;
-        const cols = piece.shape[0].length;
-        for (let x = 0; x < cols; x++) {
-            rotated[x] = [];
-            for (let y = rows - 1; y >= 0; y--) {
-                rotated[x][rows - 1 - y] = piece.shape[y][x];
-            }
-        }
-        return rotated;
-    }
-    tryRotate(dir = 1) {
-        if (!this.currentPiece || this.gameOver || this.paused) return;
-        const originalShape = this.currentPiece.shape;
-        const rotatedShape = this.rotateMatrix(this.currentPiece.shape, dir);
-        const kicks = this.getWallKickTests(this.currentPiece.name, this.currentPiece.rotation || 0, dir);
-        for (let i = 0; i < kicks.length; i++) {
-            const [dx, dy] = kicks[i];
-            const testPiece = {
-                ...this.currentPiece,
-                shape: rotatedShape,
-                x: this.currentPiece.x + dx,
-                y: this.currentPiece.y + dy
-            };
-            if (!this.isCollision(testPiece)) {
-                this.currentPiece.shape = rotatedShape;
-                this.currentPiece.x += dx;
-                this.currentPiece.y += dy;
-                this.currentPiece.rotation = ((this.currentPiece.rotation || 0) + dir + 4) % 4;
-                return;
-            }
-        }
-        // If all kicks fail, do not rotate
-    }
     rotateMatrix(matrix, dir) {
-        // dir: 1 = CW, -1 = CCW
         const rows = matrix.length;
         const cols = matrix[0].length;
         const rotated = [];
@@ -178,26 +133,45 @@ class Tetris {
         return rotated;
     }
     getWallKickTests(pieceName, rotation, dir) {
-        // SRS wall kick data for all pieces
-        // Only I and O have special rules, others use standard
         const kicks = {
             I: [
-                [[0,0],[ -2,0],[ 1,0],[ -2,-1],[ 1,2]], // 0->R
-                [[0,0],[ -1,0],[ 2,0],[ -1,2],[ 2,-1]], // R->2
-                [[0,0],[ 2,0],[ -1,0],[ 2,1],[ -1,-2]], // 2->L
-                [[0,0],[ 1,0],[ -2,0],[ 1,-2],[ -2,1]]  // L->0
+                [[0,0],[-2,0],[1,0],[-2,-1],[1,2]],
+                [[0,0],[-1,0],[2,0],[-1,2],[2,-1]],
+                [[0,0],[2,0],[-1,0],[2,1],[-1,-2]],
+                [[0,0],[1,0],[-2,0],[1,-2],[-2,1]]
             ],
             O: [ [[0,0]] ],
             default: [
-                [[0,0],[ -1,0],[ -1,1],[ 0,-2],[ -1,-2]], // 0->R
-                [[0,0],[ 1,0],[ 1,-1],[ 0,2],[ 1,2]],     // R->2
-                [[0,0],[ 1,0],[ 1,1],[ 0,-2],[ 1,-2]],    // 2->L
-                [[0,0],[ -1,0],[ -1,-1],[ 0,2],[ -1,2]]   // L->0
+                [[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]],
+                [[0,0],[1,0],[1,-1],[0,2],[1,2]],
+                [[0,0],[1,0],[1,1],[0,-2],[1,-2]],
+                [[0,0],[-1,0],[-1,-1],[0,2],[-1,2]]
             ]
         };
         if (pieceName === 'O') return kicks.O;
         if (pieceName === 'I') return kicks.I[(rotation + (dir === 1 ? 0 : 3)) % 4];
         return kicks.default[(rotation + (dir === 1 ? 0 : 3)) % 4];
+    }
+    tryRotate(dir = 1) {
+        if (!this.currentPiece || this.gameOver || this.paused) return;
+        const rotatedShape = this.rotateMatrix(this.currentPiece.shape, dir);
+        const kicks = this.getWallKickTests(this.currentPiece.name, this.currentPiece.rotation || 0, dir);
+        for (let i = 0; i < kicks.length; i++) {
+            const [dx, dy] = kicks[i];
+            const testPiece = {
+                ...this.currentPiece,
+                shape: rotatedShape,
+                x: this.currentPiece.x + dx,
+                y: this.currentPiece.y + dy
+            };
+            if (!this.isCollision(testPiece)) {
+                this.currentPiece.shape = rotatedShape;
+                this.currentPiece.x += dx;
+                this.currentPiece.y += dy;
+                this.currentPiece.rotation = ((this.currentPiece.rotation || 0) + dir + 4) % 4;
+                return;
+            }
+        }
     }
     movePiece(dx, dy) {
         if (!this.currentPiece || this.gameOver || this.paused) return false;
@@ -210,7 +184,6 @@ class Tetris {
     }
     dropPiece() {
         if (!this.currentPiece || this.gameOver || this.paused) return;
-        // Only drop one piece per call
         if (!this.movePiece(0, 1)) {
             this.placePiece();
             this.clearLines();
@@ -220,9 +193,7 @@ class Tetris {
     hardDrop() {
         if (!this.currentPiece || this.gameOver || this.paused) return;
         let dropDistance = 0;
-        while (this.movePiece(0, 1)) {
-            dropDistance++;
-        }
+        while (this.movePiece(0, 1)) dropDistance++;
         this.score += dropDistance * 2;
         this.placePiece();
         this.clearLines();
@@ -234,9 +205,7 @@ class Tetris {
                 if (this.currentPiece.shape[y][x]) {
                     const boardX = this.currentPiece.x + x;
                     const boardY = this.currentPiece.y + y;
-                    if (boardY >= 0) {
-                        this.board[boardY][boardX] = this.currentPiece.color;
-                    }
+                    if (boardY >= 0) this.board[boardY][boardX] = this.currentPiece.color;
                 }
             }
         }
@@ -244,9 +213,7 @@ class Tetris {
     clearLines() {
         const linesToClear = [];
         for (let y = this.BOARD_HEIGHT - 1; y >= 0; y--) {
-            if (this.board[y].every(cell => cell !== 0)) {
-                linesToClear.push(y);
-            }
+            if (this.board[y].every(cell => cell !== 0)) linesToClear.push(y);
         }
         if (linesToClear.length > 0) {
             this.linesToClear = linesToClear;
@@ -331,11 +298,9 @@ class Tetris {
         for (let y = 0; y < this.BOARD_HEIGHT; y++) {
             for (let x = 0; x < this.BOARD_WIDTH; x++) {
                 const cell = this.board[y][x];
+                const isStrobing = this.linesToClear.includes(y);
                 if (cell) {
-                    const isStrobing = this.linesToClear.includes(y);
-                    if (isStrobing && !this.strobeVisible) {
-                        continue;
-                    }
+                    if (isStrobing && !this.strobeVisible) continue;
                     this.drawBlock(x, y, cell, isStrobing);
                 }
             }
@@ -347,9 +312,7 @@ class Tetris {
                 x: this.currentPiece.x,
                 y: this.currentPiece.y
             };
-            while (!this.isCollision(ghostPiece, 0, 1)) {
-                ghostPiece.y++;
-            }
+            while (!this.isCollision(ghostPiece, 0, 1)) ghostPiece.y++;
             for (let y = 0; y < ghostPiece.shape.length; y++) {
                 for (let x = 0; x < ghostPiece.shape[y].length; x++) {
                     if (ghostPiece.shape[y][x]) {
@@ -372,9 +335,7 @@ class Tetris {
                 }
             }
         }
-        if (this.currentPiece) {
-            this.drawPiece(this.currentPiece);
-        }
+        if (this.currentPiece) this.drawPiece(this.currentPiece);
     }
     drawBlock(x, y, color, isStrobing = false) {
         const pixelX = this.BOARD_OFFSET_X + x * this.BLOCK_SIZE;
@@ -394,9 +355,7 @@ class Tetris {
                 if (piece.shape[y][x]) {
                     const boardX = piece.x + x;
                     const boardY = piece.y + y;
-                    if (boardY >= 0) {
-                        this.drawBlock(boardX, boardY, piece.color);
-                    }
+                    if (boardY >= 0) this.drawBlock(boardX, boardY, piece.color);
                 }
             }
         }
@@ -406,9 +365,7 @@ class Tetris {
             if (this.keys[e.code]) return;
             this.keys[e.code] = true;
             if (this.gameOver) {
-                if (e.code === 'KeyR') {
-                    this.restart();
-                }
+                if (e.code === 'KeyR') this.restart();
                 return;
             }
             if (e.code === 'KeyP') {
@@ -449,34 +406,24 @@ class Tetris {
         });
         window.addEventListener('resize', () => {
             this.resizeCanvas();
-            if (this.isMobile) {
-                this.setupMobileControls();
-            }
+            if (this.isMobile) this.setupMobileControls();
         });
         window.addEventListener('orientationchange', () => {
             setTimeout(() => {
                 this.resizeCanvas();
-                if (this.isMobile) {
-                    this.setupMobileControls();
-                }
+                if (this.isMobile) this.setupMobileControls();
             }, 100);
         });
-        // --- Pause/unpause on tap/click on playfield (canvas) ---
-        this.canvas.addEventListener('click', (e) => {
+        this.canvas.addEventListener('click', () => {
             this.togglePause();
         });
         this.canvas.addEventListener('touchend', (e) => {
-            // Only pause/unpause if not a swipe (single tap)
             if (e.changedTouches.length === 1 && e.changedTouches[0].target === this.canvas) {
                 this.togglePause();
             }
         });
-        // --- Mobile touch events ---
         if (this.isMobile) {
-            let lastTap = 0;
-            let startY = 0;
-            let startX = 0;
-            let touchMoved = false;
+            let lastTap = 0, startY = 0, startX = 0, touchMoved = false;
             this.canvas.addEventListener('touchstart', (e) => {
                 if (e.touches.length === 1) {
                     startY = e.touches[0].clientY;
@@ -484,7 +431,7 @@ class Tetris {
                     touchMoved = false;
                 }
             });
-            this.canvas.addEventListener('touchmove', (e) => {
+            this.canvas.addEventListener('touchmove', () => {
                 touchMoved = true;
             });
             this.canvas.addEventListener('touchend', (e) => {
@@ -494,25 +441,16 @@ class Tetris {
                 const deltaX = endX - startX;
                 const minSwipe = 40;
                 const now = Date.now();
-                // Only allow one action per touch
-                if (!touchMoved) {
-                    // Already handled by above for pause
-                    return;
-                }
+                if (!touchMoved) return;
                 if (Math.abs(deltaY) > Math.abs(deltaX) && deltaY < -minSwipe) {
-                    // Swipe up: rotate CW
                     this.tryRotate(1);
                 } else if (Math.abs(deltaY) > Math.abs(deltaX) && deltaY > minSwipe) {
-                    // Swipe down: hard drop
                     this.hardDrop();
                 } else if (Math.abs(deltaX) > Math.abs(deltaY) && deltaX < -minSwipe) {
-                    // Swipe right: move right
                     this.movePiece(1, 0);
                 } else if (Math.abs(deltaX) > Math.abs(deltaY) && deltaX > minSwipe) {
-                    // Swipe left: move left
                     this.movePiece(-1, 0);
                 } else if (now - lastTap < 350) {
-                    // Double tap: rotate CCW
                     this.tryRotate(-1);
                 }
                 lastTap = now;
@@ -523,7 +461,6 @@ class Tetris {
         if (!this.isMobile) {
             const mobileControls = document.getElementById('mobileControls');
             if (mobileControls) mobileControls.style.display = 'none';
-            // Remove restart button if present
             const restartBtn = document.getElementById('restartBtn');
             if (restartBtn) restartBtn.remove();
             return;
@@ -531,67 +468,36 @@ class Tetris {
         const mobileControls = document.getElementById('mobileControls');
         if (mobileControls) mobileControls.style.display = 'block';
         this.actionButtons = document.querySelectorAll('.actionBtn');
-        if (this.actionButtons.length > 0) {
-            this.setupActionButtons();
-        }
-        // Add a small restart button at bottom right if not present
+        if (this.actionButtons.length > 0) this.setupActionButtons();
         if (!document.getElementById('restartBtn')) {
             const restartBtn = document.createElement('button');
             restartBtn.id = 'restartBtn';
             restartBtn.textContent = '⟳';
-            restartBtn.style.position = 'fixed';
-            restartBtn.style.bottom = '12px';
-            restartBtn.style.right = '12px';
-            restartBtn.style.width = '40px';
-            restartBtn.style.height = '40px';
-            restartBtn.style.borderRadius = '50%';
-            restartBtn.style.background = '#222';
-            restartBtn.style.color = '#fff';
-            restartBtn.style.fontSize = '1.5em';
-            restartBtn.style.opacity = '0.7';
-            restartBtn.style.zIndex = '1001';
-            restartBtn.style.border = 'none';
-            restartBtn.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-            restartBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                this.restart();
+            Object.assign(restartBtn.style, {
+                position: 'fixed', bottom: '12px', right: '12px', width: '40px', height: '40px',
+                borderRadius: '50%', background: '#222', color: '#fff', fontSize: '1.5em', opacity: '0.7',
+                zIndex: '1001', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
             });
-            restartBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.restart();
-            });
+            restartBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.restart(); });
+            restartBtn.addEventListener('click', (e) => { e.preventDefault(); this.restart(); });
             document.body.appendChild(restartBtn);
         }
     }
     setupActionButtons() {
-        const buttons = this.actionButtons;
         const actions = [
-            { key: 'ArrowLeft', action: () => this.movePiece(-1, 0) },
-            { key: 'ArrowUp', action: () => this.tryRotate(1) },
-            { key: 'ArrowRight', action: () => this.movePiece(1, 0) },
-            { key: 'ArrowDown', action: () => this.dropPiece() },
-            { key: 'Space', action: () => this.hardDrop() },
-            { key: 'KeyQ', action: () => this.holdPiece() }
+            () => this.movePiece(-1, 0),
+            () => this.tryRotate(1),
+            () => this.movePiece(1, 0),
+            () => this.dropPiece(),
+            () => this.hardDrop(),
+            () => this.holdPiece()
         ];
-        buttons.forEach((button, index) => {
+        this.actionButtons.forEach((button, index) => {
             const action = actions[index];
-            button.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                action.action();
-                button.style.transform = 'scale(0.95)';
-            });
-            button.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                button.style.transform = 'scale(1)';
-            });
-            button.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-                action.action();
-                button.style.transform = 'scale(0.95)';
-            });
-            button.addEventListener('mouseup', () => {
-                button.style.transform = 'scale(1)';
-            });
+            button.addEventListener('touchstart', (e) => { e.preventDefault(); action(); button.style.transform = 'scale(0.95)'; });
+            button.addEventListener('touchend', (e) => { e.preventDefault(); button.style.transform = 'scale(1)'; });
+            button.addEventListener('mousedown', (e) => { e.preventDefault(); action(); button.style.transform = 'scale(0.95)'; });
+            button.addEventListener('mouseup', () => { button.style.transform = 'scale(1)'; });
         });
     }
     togglePause() {
@@ -636,18 +542,10 @@ class Tetris {
             }
             if (this.linesToClear.length > 0) {
                 this.strobeTime += deltaTime;
-                if (Math.floor(this.strobeTime / this.strobeInterval) % 2 === 0) {
-                    this.strobeVisible = true;
-                } else {
-                    this.strobeVisible = false;
-                }
-                if (this.strobeTime >= this.strobeDuration) {
-                    this.removeLines();
-                }
+                this.strobeVisible = Math.floor(this.strobeTime / this.strobeInterval) % 2 === 0;
+                if (this.strobeTime >= this.strobeDuration) this.removeLines();
             }
-            if (this.keys['ArrowDown'] || this.keys['KeyS']) {
-                this.dropTime += 50;
-            }
+            if (this.keys['ArrowDown'] || this.keys['KeyS']) this.dropTime += 50;
         }
         this.draw();
         this.updateUI();
@@ -658,6 +556,4 @@ class Tetris {
         requestAnimationFrame((time) => this.gameLoop(time));
     }
 }
-window.addEventListener('load', () => {
-    new Tetris();
-});
+window.addEventListener('load', () => { new Tetris(); });
